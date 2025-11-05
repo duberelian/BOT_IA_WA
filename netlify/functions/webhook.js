@@ -78,30 +78,35 @@ app.post('/api/webhook', (req, res) => {
 });
 
 // === 3. Función de Seguridad (Validación de Firma) ===
-// 
+// [2]
 function validateSignature(req) {
     const signature = req.headers['x-hub-signature-256'];
-
-    // --- NUEVA LÍNEA DE DIAGNÓSTICO ---
-    console.log("Validación de Firma - Cabecera 'x-hub-signature-256' RECIBIDA:", signature);
-    // --- FIN DE LÍNEA DE DIAGNÓSTICO ---
 
     if (!signature) {
         console.warn("Validación de firma fallida: No se encontró la cabecera x-hub-signature-256.");
         return false;
     }
 
-    const elements = signature.split('=');
-    const signatureHash = elements[2]; // El hash 'sha256' de Meta
-
-    if (!signatureHash) {
-        console.warn("Validación de firma fallida: Formato de cabecera inesperado.");
+    // --- NUEVA LÓGICA (MÁS ROBUSTA) ---
+    // En lugar de split('='), extraemos todo después de 'sha256='
+    // El hash comienza en el 7mo caracter (índice 7)
+    if (signature.length < 8 ||!signature.startsWith('sha256=')) {
+        console.warn("Validación de firma fallida: Formato de cabecera inesperado (no 'sha256=').");
         return false;
     }
 
+    // Extrae el "HASH"
+    const signatureHash = signature.substring(7); 
+
+    if (!signatureHash) {
+        console.warn("Validación de firma fallida: Hash vacío.");
+        return false;
+    }
+    // --- FIN DE NUEVA LÓGICA ---
+
     const expectedHash = crypto
      .createHmac('sha256', APP_SECRET)
-     .update(req.rawBody) // ¡Usar el cuerpo crudo! 
+     .update(req.rawBody) // ¡Usar el cuerpo crudo! [2]
      .digest('hex');
 
     const expectedHashBuffer = Buffer.from(expectedHash, 'hex');
@@ -114,6 +119,5 @@ function validateSignature(req) {
 
     return crypto.timingSafeEqual(signatureHashBuffer, expectedHashBuffer);
 }
-
 // Exportar para Serverless
 module.exports.handler = serverless(app);
