@@ -5,7 +5,7 @@ const serverless = require('serverless-http'); // Para Vercel/Netlify
 // Añadir en la parte superior del archivo
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 // Añadir en la parte superior del archivo
 const axios = require('axios');
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
