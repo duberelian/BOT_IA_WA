@@ -1,0 +1,12 @@
+{
+  "name": "mi-bot-webhook",
+  "version": "1.0.0",
+  "description": "Webhook para el bot de WhatsApp",
+  "main": "netlify/functions/webhook.js",
+  "dependencies": {
+    "express": "*",
+    "serverless-http": "*",
+    "body-parser": "*",
+    "axios": "*"
+  }
+}
