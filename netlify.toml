@@ -1,0 +1,8 @@
+[build]
+  command = "npm install" # Instala dependencias
+  functions = "netlify/functions" # Directorio de funciones
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/webhook/:splat"
+  status = 200
