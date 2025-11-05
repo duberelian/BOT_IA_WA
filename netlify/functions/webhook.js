@@ -45,52 +45,61 @@ app.get('/api/webhook', (req, res) => {
 });
 
 // === 2. Endpoint POST /webhook (Recepción de Mensajes) ===
-// [1]
-// CORRECCIÓN: Se convirtió en una función 'async' para usar 'await'
+// [2]
+// REEMPLAZO COMPLETO: Lógica de iteración robusta con for...of
 app.post('/api/webhook', async (req, res) => {
     
-    // Primero, validar la firma de seguridad
+    // 1. Validar la firma (esto ya funciona)
     if (!validateSignature(req)) {
         console.warn("Validación de firma fallida. Solicitud descartada.");
-        return res.sendStatus(403); // Prohibido
+        return res.sendStatus(403);
     }
 
     const body = req.body;
 
-    // Verificar que es un evento de WhatsApp
+    // 2. Verificar que es un evento de WhatsApp
     if (body.object === 'whatsapp_business_account') {
-        
-        // CORRECCIÓN: Lógica de iteración mejorada para manejar 'changes'
         try {
-            if (body.entry && body.entry.changes && body.entry.changes && body.entry.changes.value.messages && body.entry.changes.value.messages) {
-                
-                let value = body.entry.changes.value;
-                let message = value.messages; // Obtener el primer mensaje
+            // 3. Iterar sobre las entradas (entries)
+            if (body.entry) {
+                for (const entry of body.entry) {
+                    // 4. Iterar sobre los cambios (changes)
+                    if (entry.changes) {
+                        for (const change of entry.changes) {
+                            // 5. Verificar que el cambio tiene mensajes
+                            if (change.value && change.value.messages) {
+                                // 6. Iterar sobre los mensajes (puede haber varios)
+                                for (const message of change.value.messages) {
+                                    
+                                    if (message.type === 'text') {
+                                        const from = message.from;
+                                        const messageId = message.id;
+                                        const textBody = message.text.body;
 
-                if (message.type === 'text') {
-                    const from = message.from; // Número del usuario
-                    const messageId = message.id; // ID del mensaje
-                    const textBody = message.text.body; // Texto del mensaje
+                                        // --- ¡AQUÍ ESTÁ EL LOG! ---
+                                        console.log(`Mensaje de ${from} (ID: ${messageId}): ${textBody}`);
 
-                    // --- ESTE ES EL LOG QUE ESTÁS BUSCANDO ---
-                    console.log(`Mensaje de ${from} (ID: ${messageId}): ${textBody}`);
-
-                    // *** AQUÍ VA LA LÓGICA DE IA (Fase 6) ***
-                    // Asegúrate de tener la función getAIResponse(textBody)
-                    const aiResponse = await getAIResponse(textBody);
-                    
-                    // *** AQUÍ VA EL ENVÍO DE RESPUESTA (Fase 7) ***
-                    // Asegúrate de tener la función sendWhatsAppReply(from, aiResponse, messageId)
-                    await sendWhatsAppReply(from, aiResponse, messageId);
+                                        // 7. Llamar a la IA (Fase 6)
+                                        const aiResponse = await getAIResponse(textBody);
+                                        
+                                        // 8. Enviar respuesta (Fase 7)
+                                        await sendWhatsAppReply(from, aiResponse, messageId);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            res.sendStatus(200); // Responder OK a Meta
+            // 9. Responder 200 OK a Meta
+            res.sendStatus(200);
         } catch (error) {
             console.error("Error procesando el webhook:", error);
-            res.sendStatus(500); // Error interno del servidor
+            res.sendStatus(500); // Informar de un error si algo falla
         }
     } else {
-        res.sendStatus(404); // No encontrado
+        // No es un evento de WhatsApp
+        res.sendStatus(404);
     }
 });
 
