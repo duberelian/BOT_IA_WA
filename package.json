@@ -7,6 +7,7 @@
     "express": "*",
     "serverless-http": "*",
     "body-parser": "*",
-    "axios": "*"
+    "axios": "*",
+    "@google/generative-ai": "*"
   }
 }
