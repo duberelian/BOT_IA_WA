@@ -23,7 +23,7 @@ app.use(bodyParser.json({
 
 // === 1. Endpoint GET /webhook (Verificación de Meta) ===
 // 
-app.get('/webhook', (req, res) => {
+app.get('/api/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
@@ -39,7 +39,7 @@ app.get('/webhook', (req, res) => {
 
 // === 2. Endpoint POST /webhook (Recepción de Mensajes) ===
 // 
-app.post('/webhook', (req, res) => {
+app.post('/api/webhook', (req, res) => {
     // Primero, validar la firma de seguridad
     if (!validateSignature(req)) {
         console.warn("Validación de firma fallida. Solicitud descartada.");
