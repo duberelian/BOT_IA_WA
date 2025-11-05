@@ -2,6 +2,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const serverless = require('serverless-http'); // Para Vercel/Netlify
+// Añadir en la parte superior del archivo
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Añadir en la parte superior del archivo
+const axios = require('axios');
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
 const app = express();
 
@@ -38,8 +45,10 @@ app.get('/api/webhook', (req, res) => {
 });
 
 // === 2. Endpoint POST /webhook (Recepción de Mensajes) ===
-// 
-app.post('/api/webhook', (req, res) => {
+// [1]
+// CORRECCIÓN: Se convirtió en una función 'async' para usar 'await'
+app.post('/api/webhook', async (req, res) => {
+    
     // Primero, validar la firma de seguridad
     if (!validateSignature(req)) {
         console.warn("Validación de firma fallida. Solicitud descartada.");
@@ -50,28 +59,36 @@ app.post('/api/webhook', (req, res) => {
 
     // Verificar que es un evento de WhatsApp
     if (body.object === 'whatsapp_business_account') {
-        body.entry.forEach(entry => {
-            const changes = entry.changes;
-            if (changes && changes && changes.value && changes.value.messages) {
-                const message = changes.value.messages;
+        
+        // CORRECCIÓN: Lógica de iteración mejorada para manejar 'changes'
+        try {
+            if (body.entry && body.entry.changes && body.entry.changes && body.entry.changes.value.messages && body.entry.changes.value.messages) {
+                
+                let value = body.entry.changes.value;
+                let message = value.messages; // Obtener el primer mensaje
+
                 if (message.type === 'text') {
                     const from = message.from; // Número del usuario
                     const messageId = message.id; // ID del mensaje
                     const textBody = message.text.body; // Texto del mensaje
 
+                    // --- ESTE ES EL LOG QUE ESTÁS BUSCANDO ---
                     console.log(`Mensaje de ${from} (ID: ${messageId}): ${textBody}`);
 
                     // *** AQUÍ VA LA LÓGICA DE IA (Fase 6) ***
-                    // Ejemplo:
-                    // const aiResponse = await getAIResponse(textBody);
+                    // Asegúrate de tener la función getAIResponse(textBody)
+                    const aiResponse = await getAIResponse(textBody);
                     
                     // *** AQUÍ VA EL ENVÍO DE RESPUESTA (Fase 7) ***
-                    // Ejemplo:
-                    // await sendWhatsAppReply(from, aiResponse, messageId);
+                    // Asegúrate de tener la función sendWhatsAppReply(from, aiResponse, messageId)
+                    await sendWhatsAppReply(from, aiResponse, messageId);
                 }
             }
-        });
-        res.sendStatus(200); // Responder OK a Meta
+            res.sendStatus(200); // Responder OK a Meta
+        } catch (error) {
+            console.error("Error procesando el webhook:", error);
+            res.sendStatus(500); // Error interno del servidor
+        }
     } else {
         res.sendStatus(404); // No encontrado
     }
@@ -121,3 +138,57 @@ function validateSignature(req) {
 }
 // Exportar para Serverless
 module.exports.handler = serverless(app);
+
+async function getAIResponse(userText) {
+    try {
+        // [29, 30]
+        const chat = model.startChat({
+            history: [
+                // Opcional: Añadir un "system prompt"
+                { role: "user", parts: [{ text: "Eres un asistente de IA amable y servicial." }] },
+                { role: "model", parts: [{ text: "¡Entendido! Estoy listo para ayudar." }] }
+            ],
+        });
+        const result = await chat.sendMessage(userText);
+        const response = result.response;
+        return response.text();
+    } catch (error) {
+        console.error("Error al llamar a la API de Gemini:", error);
+        return "Lo siento, estoy teniendo problemas para conectar con mi cerebro de IA en este momento.";
+    }
+}
+
+
+
+async function sendWhatsAppReply(to, text, messageId) {
+    const url = `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`;
+    const headers = {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+    };
+    // [32, 34, 35]
+    const body = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "text",
+        "text": {
+            "preview_url": false,
+            "body": text
+        },
+        // --- Respuesta Contextual  ---
+        // Esto hace que el bot "cite" el mensaje original.
+        "context": {
+            "message_id": messageId 
+        }
+    };
+
+    try {
+        await axios.post(url, body, { headers: headers });
+        console.log(`Respuesta enviada a ${to}`);
+    } catch (error) {
+        console.error("Error al enviar la respuesta de WhatsApp:", error.response? error.response.data : error.message);
+    }
+}
+
+
