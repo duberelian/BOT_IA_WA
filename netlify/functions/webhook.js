@@ -81,6 +81,11 @@ app.post('/api/webhook', (req, res) => {
 // 
 function validateSignature(req) {
     const signature = req.headers['x-hub-signature-256'];
+
+    // --- NUEVA LÍNEA DE DIAGNÓSTICO ---
+    console.log("Validación de Firma - Cabecera 'x-hub-signature-256' RECIBIDA:", signature);
+    // --- FIN DE LÍNEA DE DIAGNÓSTICO ---
+
     if (!signature) {
         console.warn("Validación de firma fallida: No se encontró la cabecera x-hub-signature-256.");
         return false;
@@ -95,25 +100,18 @@ function validateSignature(req) {
     }
 
     const expectedHash = crypto
-      .createHmac('sha256', APP_SECRET)
-      .update(req.rawBody) // ¡Usar el cuerpo crudo! 
-      .digest('hex');
+     .createHmac('sha256', APP_SECRET)
+     .update(req.rawBody) // ¡Usar el cuerpo crudo! 
+     .digest('hex');
 
-    // --- CORRECCIÓN CRÍTICA ---
-    // Ambas cadenas (hashes) deben convertirse a Buffers
-    // especificando que su codificación es 'hex' (hexadecimal).
-    // Si no, Buffer.from() las trata como UTF-8, creando
-    // buffers de longitudes diferentes y causando el RangeError.
     const expectedHashBuffer = Buffer.from(expectedHash, 'hex');
     const signatureHashBuffer = Buffer.from(signatureHash, 'hex');
 
-    // Validar que los buffers tengan la misma longitud ANTES de la comparación segura
     if (signatureHashBuffer.length!== expectedHashBuffer.length) {
          console.warn("Validación de firma fallida: Longitudes de hash no coinciden.");
         return false;
     }
 
-    // Comparación segura para evitar ataques de temporización
     return crypto.timingSafeEqual(signatureHashBuffer, expectedHashBuffer);
 }
 
